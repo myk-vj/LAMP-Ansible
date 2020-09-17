@@ -1,0 +1,159 @@
+WORKING
+
+
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Amol sample httpd install template",
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+        },
+        "InstanceType": {
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "t2.micro",
+            "AllowedValues": [
+                "t1.micro",
+                "t2.nano",
+                "t2.micro"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type."
+        },
+        "SSHLocation": {
+            "Description": "The IP address range that can be used to SSH to the EC2 instances",
+            "Type": "String",
+            "MinLength": "9",
+            "MaxLength": "18",
+            "Default": "0.0.0.0/0",
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+        }
+    },
+    "Mappings": {
+        "AWSInstanceType2Arch": {
+            "t1.micro": {
+                "Arch": "HVM64"
+            },
+            "t2.nano": {
+                "Arch": "HVM64"
+            },
+            "t2.micro": {
+                "Arch": "HVM64"
+            }
+        },
+        "AWSInstanceType2NATArch": {
+            "t1.micro": {
+                "Arch": "NATHVM64"
+            },
+            "t2.nano": {
+                "Arch": "NATHVM64"
+            },
+            "t2.micro": {
+                "Arch": "NATHVM64"
+            }
+        },
+        "AWSRegionArch2AMI": {
+            "us-east-1": {
+                "PV64": "ami-2a69aa47",
+                "HVM64": "ami-6869aa05",
+                "HVMG2": "ami-3353c649"
+            }
+        }
+    },
+    "Resources": {
+        "WebServerSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Enable HTTP access via port 80 locked down to the load balancer + SSH access",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort": "22",
+                        "CidrIp": {
+                            "Ref": "SSHLocation"
+                        }
+                    }
+                ]
+            }
+        },
+        "WebServerInstance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": "ami-098f16afa9edf40be",
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "WebServerSecurityGroup"
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "Content-Type: multipart/mixed; boundary=\"//\"\n",
+                                "MIME-Version: 1.0\n",
+                                "--//\n",
+                                "Content-Type: text/cloud-config; charset=\"us-ascii\"\n",
+                                "MIME-Version: 1.0\n",
+                                "Content-Transfer-Encoding: 7bit\n",
+                                "Content-Disposition: attachment; filename=\"cloud-config.txt\"\n",
+                                "#cloud-config\n",
+                                "cloud_final_modules:\n",
+                                "- [scripts-user, always]\n",
+                                "--//\n",
+                                "Content-Type: text/x-shellscript; charset=\"us-ascii\"\n",
+                                "MIME-Version: 1.0\n",
+                                "Content-Transfer-Encoding: 7bit\n",
+                                "Content-Disposition: attachment; filename=\"userdata.txt\"\n",
+                                "#!/usr/bin/bash\n",
+                                "su ec2-user && touch /home/ec2-user/test\n",
+                                "sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y\n",
+                                "sudo yum update -y\n",
+                                "sudo yum install ansible git python3 unzip -y\n",
+                                "pip3 install pymysql\n",
+                                "cd /home/ec2-user && git clone https://github.com/myk-vj/LAMP-Ansible.git && chown -R ec2-user:ec2-user *\n",
+                                "cd LAMP-Ansible && ansible-playbook Mediawiki_Playbook.yml > Mediawiki_Playbook.out && chown -R ec2-user:ec2-user *\n",
+                                "--//\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "InstanceDNSName": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "WebServerInstance",
+                    "PublicDnsName"
+                ]
+            },
+            "Description": "Instance DNS Name"
+        },
+        "InstanceIP": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "WebServerInstance",
+                    "PublicIp"
+                ]
+            },
+            "Description": "Instance IP"
+        }
+    }
+}
