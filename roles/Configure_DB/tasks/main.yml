@@ -1,0 +1,54 @@
+---
+# tasks file for Configure_DB
+- name: Update root password
+  mysql_user:
+    name: root
+    host: "{{item}}"
+    password: root
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: Copy .my.cnf file with root password credentials.
+  template:
+    src: "root-my.cnf.j2"
+    dest: /root/.my.cnf"
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Ensure default user is present.
+  mysql_user:
+    name: wiki
+    host: 'localhost'
+    password: wiki
+    priv: '*.*:ALL,GRANT'
+    state: present
+
+- name: Copy user-my.cnf file with password credentials.
+  template:
+    src: "user-my.cnf.j2"
+    dest: /home/ec2-user/.my.cnf"
+    owner: ec2-user
+    mode: 0600
+
+- name: Remove MySQL test database.
+  mysql_db:
+    name: test
+    state: absent
+
+- name: list DB
+  shell: mysql -u root -proot -NBe "SHOW DATABASES like 'wikidatabase'"
+  register: db_list
+
+- name: create DB
+  shell: mysql -uroot -proot -NBe 'CREATE DATABASE wikidatabase'
+  when: db_list.stdout == ""
+
+- name: grant permission
+  shell: mysql -uroot -proot -NBe "GRANT ALL PRIVILEGES ON wikidatabase.* TO 'wiki'@'localhost'"
+
+- name: flush permission
+  shell: mysql -uroot -proot -NBe "FLUSH PRIVILEGES"

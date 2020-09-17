@@ -1,0 +1,8 @@
+- hosts: localhost
+  become: true
+  roles:
+    - Pre_Req
+    - Configure_DB
+    - Enable_Services
+    - Configure_Application
+    - Restart_Apache

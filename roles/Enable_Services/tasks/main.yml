@@ -1,0 +1,11 @@
+---
+# tasks file for Enable_Services
+- name: Enable service httpd, and not touch the state
+  service:
+    name: httpd
+    enabled: yes
+
+- name: Enable service httpd, and not touch the state
+  service:
+    name: mariadb
+    enabled: yes
