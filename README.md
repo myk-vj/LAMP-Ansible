@@ -17,3 +17,11 @@ One must use the CLoudFormation template and it will create RHEL 8 based EC2 inf
 
 ### Ansible Playbook
 CloudFormation pulls this repository for the ansible playbook and execute it as user data, automatically.
+
+### CI:CD Pipeline
+Execute the CFT template via CLI from a job in CI:CD pipline and it will internally install ansible & setup mediawiki via playbook.
+
+### Scaling of Mediawiki
+1. Host a centralised DB on a seperate set of servers.
+2. Add servers to App & DB as per the load.
+3. Keep all the servers in a same network.
